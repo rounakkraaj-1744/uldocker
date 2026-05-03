@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"strings"
-
 	"uldocker/internal/ui"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -148,7 +147,22 @@ func (m Model) renderRightPanel() string {
 
 	content := ""
 
-	if !m.ShowDetails {
+	if m.Streaming {
+		if len(m.Logs) == 0 {
+			content = "Loading logs..."
+		} else {
+			output := ""
+			start := 0
+			if len(m.Logs) > 20 {
+				start = len(m.Logs) - 20
+			}
+
+			for _, line := range m.Logs[start:] {
+				output += line + "\n"
+			}
+			content = output
+		}
+	} else if !m.ShowDetails {
 		content = "Select an item to view details"
 	} else {
 		idx := m.SelectedIndexes[m.ActiveTab]

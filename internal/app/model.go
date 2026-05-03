@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"uldocker/pkg/types"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -12,13 +14,6 @@ const (
 	TabVolumes
 	TabNetworks
 )
-
-// Mock data structures
-type Container struct {
-	Name   string
-	ID     string
-	Status string // "running" or "exited"
-}
 
 type Image struct {
 	Repository string
@@ -36,25 +31,27 @@ type Network struct {
 	Driver string
 }
 
-// Model represents the UI state
 type Model struct {
-	ActiveTab    Tab
+	ActiveTab Tab
 	SelectedIndexes map[Tab]int
-	ShowDetails  bool
-
+	ShowDetails     bool
 	Width  int
 	Height int
-
-	// Mock Data
-	Containers []Container
-	Images     []Image
-	Volumes    []Volume
-	Networks   []Network
+	Containers []types.Container
+	Images   []Image
+	Volumes  []Volume
+	Networks []Network
+	Loading bool
+	Err     error
+	Logs        []string
+	Streaming   bool
+	CurrentID   string
+	LogsCancel  context.CancelFunc
 }
 
 func NewModel() Model {
 	return Model{
-		ActiveTab:       TabContainers,
+		ActiveTab: TabContainers,
 		SelectedIndexes: map[Tab]int{
 			TabContainers: 0,
 			TabImages:     0,
@@ -63,11 +60,10 @@ func NewModel() Model {
 		},
 		ShowDetails: false,
 
-		Containers: []Container{
-			{Name: "api-server", ID: "a1b2c3d4e5f6", Status: "running"},
-			{Name: "postgres-db", ID: "b2c3d4e5f6a1", Status: "running"},
-			{Name: "redis-cache", ID: "c3d4e5f6a1b2", Status: "exited"},
-		},
+		Loading: true,
+
+		Containers: []types.Container{},
+
 		Images: []Image{
 			{Repository: "node", Tag: "18", Size: "120MB"},
 			{Repository: "postgres", Tag: "15", Size: "300MB"},
@@ -80,9 +76,14 @@ func NewModel() Model {
 			{Name: "bridge", Driver: "bridge"},
 			{Name: "host", Driver: "host"},
 		},
+
+
+		Logs:      []string{},
+		Streaming: false,
+		CurrentID: "",
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return loadContainers
 }
