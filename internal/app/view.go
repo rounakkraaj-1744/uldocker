@@ -206,6 +206,8 @@ func (m Model) renderFooter() string {
 	helpText := "j/k: move | enter: select | 1-4: switch tabs | : command | q: quit"
 	if m.CommandError != "" {
 		helpText += "  " + ui.StatusExitedStyle.Render("Error: "+m.CommandError)
+	} else if m.CommandResult != "" {
+		helpText += "  " + ui.StatusRunningStyle.Render(m.CommandResult)
 	}
 	return ui.FooterStyle.Width(m.Width).Render(helpText)
 }

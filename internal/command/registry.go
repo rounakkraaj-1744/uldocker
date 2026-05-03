@@ -1,10 +1,14 @@
 package command
 
 import (
-	"github.com/docker/docker/client"
+	"uldocker/pkg/types"
 )
 
-type Handler func(cli *client.Client, args []string) error
+type Context struct {
+	Targets []types.Container
+}
+
+type Handler func(args []string, ctx Context) (string, error)
 
 type Registry struct {
 	handlers map[string]Handler

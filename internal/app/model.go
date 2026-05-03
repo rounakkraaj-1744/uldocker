@@ -34,6 +34,7 @@ type Model struct {
 	CommandMode  bool
 	CommandInput string
 	CommandError string
+	CommandResult string
 }
 
 func NewModel() Model {

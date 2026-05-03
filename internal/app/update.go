@@ -121,6 +121,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.CommandResult != "" {
+			m.CommandResult = ""
+		}
+
 		if m.CommandMode {
 			switch msg.Type {
 			case tea.KeyEnter:
@@ -267,19 +271,40 @@ func (m *Model) getActiveListLength() int {
 
 func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	cmd := command.Parse(m.CommandInput)
+	if cmd.Name == "" {
+		m.CommandMode = false
+		return m, nil
+	}
+
+	var targets []types.Container
 
 	// Context Awareness
 	if len(cmd.Args) == 0 && m.ActiveTab == TabContainers && len(m.Containers) > 0 {
 		idx := m.SelectedIndexes[TabContainers]
-		cmd.Args = append(cmd.Args, m.Containers[idx].Name)
+		targets = []types.Container{m.Containers[idx]}
+	} else if len(cmd.Args) > 0 {
+		targets = command.ResolveTargets(cmd.Args, m.Containers)
+		if len(targets) == 0 {
+			m.CommandError = "No containers found for '" + cmd.Args[0] + "'"
+			m.CommandResult = ""
+			m.CommandMode = false
+			return m, nil
+		}
+	} else {
+		m.CommandError = "No target specified"
+		m.CommandResult = ""
+		m.CommandMode = false
+		return m, nil
 	}
 
-	err := command.Execute(cmd)
+	resultMsg, err := command.Execute(cmd, targets)
 
 	if err != nil {
 		m.CommandError = err.Error()
+		m.CommandResult = ""
 	} else {
 		m.CommandError = ""
+		m.CommandResult = resultMsg
 	}
 
 	m.CommandMode = false
