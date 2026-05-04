@@ -45,17 +45,48 @@ func FilterContainers(cmd string, containers []types.Container) []types.Containe
 	}
 }
 
+func MatchImages(query string, images []types.Image) []types.Image {
+	var result []types.Image
+	query = strings.ToLower(query)
+	for _, i := range images {
+		if strings.Contains(strings.ToLower(i.Repository), query) {
+			result = append(result, i)
+		}
+	}
+	return result
+}
+
+func MatchVolumes(query string, volumes []types.Volume) []types.Volume {
+	var result []types.Volume
+	query = strings.ToLower(query)
+	for _, v := range volumes {
+		if strings.Contains(strings.ToLower(v.Name), query) {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+func MatchNetworks(query string, networks []types.Network) []types.Network {
+	var result []types.Network
+	query = strings.ToLower(query)
+	for _, n := range networks {
+		if strings.Contains(strings.ToLower(n.Name), query) {
+			result = append(result, n)
+		}
+	}
+	return result
+}
+
 func ResolveTargets(args []string, containers []types.Container) []types.Container {
 	if len(args) == 0 {
 		return nil
 	}
 
-	// First try exact keyword matching
 	keywordMatch := FilterContainers(args[0], containers)
 	if keywordMatch != nil {
 		return keywordMatch
 	}
 
-	// Fallback to fuzzy matching
 	return MatchContainers(args[0], containers)
 }

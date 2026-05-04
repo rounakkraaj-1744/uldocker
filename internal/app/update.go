@@ -132,15 +132,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case tea.KeyEsc:
 				m.CommandMode = false
+				m.Suggestions = nil
+				return m, nil
+
+			case tea.KeyUp:
+				if len(m.History) > 0 {
+					if m.HistoryIndex == -1 {
+						m.HistoryIndex = len(m.History) - 1
+					} else if m.HistoryIndex > 0 {
+						m.HistoryIndex--
+					}
+					m.CommandInput = m.History[m.HistoryIndex]
+					m.updateSuggestions()
+				}
+				return m, nil
+
+			case tea.KeyDown:
+				if len(m.History) > 0 && m.HistoryIndex != -1 {
+					if m.HistoryIndex < len(m.History)-1 {
+						m.HistoryIndex++
+						m.CommandInput = m.History[m.HistoryIndex]
+					} else {
+						m.HistoryIndex = -1
+						m.CommandInput = ""
+					}
+					m.updateSuggestions()
+				}
 				return m, nil
 
 			case tea.KeyBackspace, tea.KeyDelete:
 				if len(m.CommandInput) > 0 {
 					m.CommandInput = m.CommandInput[:len(m.CommandInput)-1]
 				}
+				m.updateSuggestions()
 
 			default:
 				m.CommandInput += msg.String()
+				m.updateSuggestions()
 			}
 
 			return m, nil
@@ -277,27 +305,48 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	}
 
 	var targets []types.Container
+	var images  []types.Image
+	var volumes []types.Volume
+	var networks []types.Network
 
-	// Context Awareness
-	if len(cmd.Args) == 0 && m.ActiveTab == TabContainers && len(m.Containers) > 0 {
-		idx := m.SelectedIndexes[TabContainers]
-		targets = []types.Container{m.Containers[idx]}
-	} else if len(cmd.Args) > 0 {
-		targets = command.ResolveTargets(cmd.Args, m.Containers)
-		if len(targets) == 0 {
-			m.CommandError = "No containers found for '" + cmd.Args[0] + "'"
-			m.CommandResult = ""
-			m.CommandMode = false
-			return m, nil
+	// Context Awareness based on active tab
+	if len(cmd.Args) == 0 {
+		idx := m.SelectedIndexes[m.ActiveTab]
+		switch m.ActiveTab {
+		case TabContainers:
+			if len(m.Containers) > idx {
+				targets = []types.Container{m.Containers[idx]}
+			}
+		case TabImages:
+			if len(m.Images) > idx {
+				images = []types.Image{m.Images[idx]}
+			}
+		case TabVolumes:
+			if len(m.Volumes) > idx {
+				volumes = []types.Volume{m.Volumes[idx]}
+			}
+		case TabNetworks:
+			if len(m.Networks) > idx {
+				networks = []types.Network{m.Networks[idx]}
+			}
 		}
 	} else {
-		m.CommandError = "No target specified"
-		m.CommandResult = ""
-		m.CommandMode = false
-		return m, nil
+		// Smart Resolution
+		switch cmd.Name {
+		case "rmi":
+			images = command.MatchImages(cmd.Args[0], m.Images)
+		case "rmv":
+			volumes = command.MatchVolumes(cmd.Args[0], m.Volumes)
+		case "rmn":
+			networks = command.MatchNetworks(cmd.Args[0], m.Networks)
+		case "prune":
+			// Prune acts on everything
+		default:
+			targets = command.ResolveTargets(cmd.Args, m.Containers)
+		}
 	}
 
-	resultMsg, err := command.Execute(cmd, targets)
+	resultMsg, err := command.Execute(cmd, targets, images, volumes, networks)
 
 	if err != nil {
 		m.CommandError = err.Error()
@@ -305,8 +354,44 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	} else {
 		m.CommandError = ""
 		m.CommandResult = resultMsg
+		
+		// History
+		m.History = append(m.History, m.CommandInput)
+		m.HistoryIndex = -1
 	}
 
 	m.CommandMode = false
+	m.Suggestions = nil
+	if err == nil {
+		return m, loadResources
+	}
 	return m, nil
+}
+
+func (m *Model) updateSuggestions() {
+	if m.CommandInput == "" {
+		m.Suggestions = nil
+		return
+	}
+
+	parts := strings.Fields(m.CommandInput)
+	if len(parts) == 0 {
+		m.Suggestions = command.Suggest(m.CommandInput)
+		return
+	}
+
+	if len(parts) == 1 && !strings.HasSuffix(m.CommandInput, " ") {
+		// Still typing the command
+		m.Suggestions = command.Suggest(parts[0])
+	} else {
+		// Typing arguments
+		cmdName := parts[0]
+		argQuery := ""
+		if strings.HasSuffix(m.CommandInput, " ") {
+			// Ready for next arg
+		} else {
+			argQuery = parts[len(parts)-1]
+		}
+		m.Suggestions = command.SuggestArgs(cmdName, argQuery, m.Containers, m.Images, m.Volumes, m.Networks)
+	}
 }

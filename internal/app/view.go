@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"strings"
+	"uldocker/internal/command"
 	"uldocker/internal/ui"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -196,18 +197,103 @@ func (m Model) renderRightPanel() string {
 
 func (m Model) renderFooter() string {
 	if m.CommandMode {
-		footer := ":" + m.CommandInput
+		indicator := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true).Render("-- COMMAND --")
+		prompt := ":" + m.CommandInput
+		
+		suggestions := ""
+		if len(m.Suggestions) > 0 {
+			suggestions = "  " + lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Join(m.Suggestions, " | "))
+		}
+
+		footer := lipgloss.JoinHorizontal(lipgloss.Bottom, indicator, " ", prompt, suggestions)
+		
 		if m.CommandError != "" {
 			footer += "  " + ui.StatusExitedStyle.Render("Error: "+m.CommandError)
 		}
+		
+		preview := m.renderCommandPreview()
+		if preview != "" {
+			return ui.FooterStyle.Width(m.Width).Render(preview + "\n" + footer)
+		}
+
 		return ui.FooterStyle.Width(m.Width).Render(footer)
 	}
 
 	helpText := "j/k: move | enter: select | 1-4: switch tabs | : command | q: quit"
 	if m.CommandError != "" {
-		helpText += "  " + ui.StatusExitedStyle.Render("Error: "+m.CommandError)
+		helpText = ui.StatusExitedStyle.Render("✖ " + m.CommandError)
 	} else if m.CommandResult != "" {
-		helpText += "  " + ui.StatusRunningStyle.Render(m.CommandResult)
+		helpText = ui.StatusRunningStyle.Render("✔ " + m.CommandResult)
 	}
 	return ui.FooterStyle.Width(m.Width).Render(helpText)
+}
+
+func (m Model) renderCommandPreview() string {
+	if m.CommandInput == "" {
+		return ""
+	}
+
+	cmd := command.Parse(m.CommandInput)
+	if cmd.Name == "" {
+		return ""
+	}
+
+	var names []string
+
+	// Smart Context Awareness
+	if len(cmd.Args) == 0 {
+		idx := m.SelectedIndexes[m.ActiveTab]
+		switch m.ActiveTab {
+		case TabContainers:
+			if len(m.Containers) > idx {
+				names = []string{m.Containers[idx].Name}
+			}
+		case TabImages:
+			if len(m.Images) > idx {
+				names = []string{m.Images[idx].Repository}
+			}
+		case TabVolumes:
+			if len(m.Volumes) > idx {
+				names = []string{m.Volumes[idx].Name}
+			}
+		case TabNetworks:
+			if len(m.Networks) > idx {
+				names = []string{m.Networks[idx].Name}
+			}
+		}
+	} else {
+		// Resolve based on command name
+		switch cmd.Name {
+		case "rmi":
+			matches := command.MatchImages(cmd.Args[0], m.Images)
+			for _, i := range matches {
+				names = append(names, i.Repository)
+			}
+		case "rmv":
+			matches := command.MatchVolumes(cmd.Args[0], m.Volumes)
+			for _, v := range matches {
+				names = append(names, v.Name)
+			}
+		case "rmn":
+			matches := command.MatchNetworks(cmd.Args[0], m.Networks)
+			for _, n := range matches {
+				names = append(names, n.Name)
+			}
+		case "prune":
+			names = []string{"all unused resources"}
+		default:
+			targets := command.ResolveTargets(cmd.Args, m.Containers)
+			for _, t := range targets {
+				names = append(names, t.Name)
+			}
+		}
+	}
+
+	if len(names) == 0 {
+		return ""
+	}
+
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true).Render(
+		fmt.Sprintf("Will %s: %s", cmd.Name, strings.Join(names, ", ")),
+	)
 }

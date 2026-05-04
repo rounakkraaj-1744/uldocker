@@ -5,7 +5,10 @@ import (
 )
 
 type Context struct {
-	Targets []types.Container
+	Targets    []types.Container
+	ImageTargets []types.Image
+	VolumeTargets []types.Volume
+	NetworkTargets []types.Network
 }
 
 type Handler func(args []string, ctx Context) (string, error)

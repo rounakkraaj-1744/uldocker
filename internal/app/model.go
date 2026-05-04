@@ -35,6 +35,9 @@ type Model struct {
 	CommandInput string
 	CommandError string
 	CommandResult string
+	Suggestions  []string
+	History      []string
+	HistoryIndex int
 }
 
 func NewModel() Model {
@@ -59,6 +62,10 @@ func NewModel() Model {
 		Logs:      []string{},
 		Streaming: false,
 		CurrentID: "",
+
+		Suggestions:  []string{},
+		History:      []string{},
+		HistoryIndex: -1,
 	}
 }
 

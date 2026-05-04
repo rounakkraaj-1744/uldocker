@@ -37,3 +37,35 @@ func ListContainers() ([]types.Container, error) {
 	}
 	return result, nil
 }
+
+func StartContainer(id string) error {
+	cli, err := NewClient()
+	if err != nil {
+		return err
+	}
+	return cli.ContainerStart(GetContext(), id, container.StartOptions{})
+}
+
+func StopContainer(id string) error {
+	cli, err := NewClient()
+	if err != nil {
+		return err
+	}
+	return cli.ContainerStop(GetContext(), id, container.StopOptions{})
+}
+
+func RestartContainer(id string) error {
+	cli, err := NewClient()
+	if err != nil {
+		return err
+	}
+	return cli.ContainerRestart(GetContext(), id, container.StopOptions{})
+}
+
+func RemoveContainer(id string) error {
+	cli, err := NewClient()
+	if err != nil {
+		return err
+	}
+	return cli.ContainerRemove(GetContext(), id, container.RemoveOptions{Force: true})
+}
