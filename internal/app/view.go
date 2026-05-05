@@ -163,8 +163,19 @@ func (m Model) renderRightPanel() string {
 	}
 
 	var content string
+	titleStr := "DETAILS / LOGS"
 
-	if m.Streaming {
+	if m.IsStats {
+		titleStr = "REAL-TIME STATS"
+		content = fmt.Sprintf(
+			"%s\n\n%s\n%s\n%s\n%s",
+			ui.TitleStyle.Render("Container: "+m.CurrentID),
+			fmt.Sprintf("  CPU:    %.2f%%", m.CurrentStats.CPUPercentage),
+			fmt.Sprintf("  Memory: %.1fMB / %.1fMB (%.2f%%)", m.CurrentStats.MemoryUsage/1024/1024, m.CurrentStats.MemoryLimit/1024/1024, m.CurrentStats.MemoryPercentage),
+			fmt.Sprintf("  Net IO: %s", m.CurrentStats.NetIO),
+			fmt.Sprintf("  Blk IO: %s", m.CurrentStats.BlockIO),
+		)
+	} else if m.Streaming {
 		if len(m.Logs) == 0 {
 			content = ui.EmptyStateStyle.Render("⏳ Waiting for logs...")
 		} else {
@@ -230,7 +241,7 @@ func (m Model) renderRightPanel() string {
 		}
 	}
 
-	title := ui.TitleStyle.Render("DETAILS / LOGS")
+	title := ui.TitleStyle.Render(titleStr)
 	body := lipgloss.JoinVertical(lipgloss.Left, title, "", content)
 
 	return ui.PanelStyle.

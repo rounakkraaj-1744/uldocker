@@ -24,6 +24,7 @@ func init() {
 	globalRegistry.Register("stats", statsHandler)
 	globalRegistry.Register("run", runHandler)
 	globalRegistry.Register("push", pushHandler)
+	globalRegistry.Register("exec", execHandler)
 }
 
 func Execute(cmd Command, targets []types.Container, images []types.Image, volumes []types.Volume, networks []types.Network) (string, error) {
@@ -111,6 +112,17 @@ func pushHandler(args []string, ctx Context) (string, error) {
 		name = ctx.ImageTargets[0].Repository
 	}
 	return "PUSH:" + name, nil
+}
+
+func execHandler(args []string, ctx Context) (string, error) {
+	if len(ctx.Targets) == 0 {
+		return "", fmt.Errorf("no container selected for exec")
+	}
+	shell := "/bin/sh"
+	if len(args) > 0 {
+		shell = args[0]
+	}
+	return "EXEC:" + ctx.Targets[0].ID + ":" + shell, nil
 }
 
 func stopHandler(args []string, ctx Context) (string, error) {

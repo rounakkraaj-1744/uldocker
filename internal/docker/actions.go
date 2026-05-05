@@ -8,6 +8,15 @@ import (
 	"github.com/docker/docker/api/types/network"
 )
 
+func GetContainerStats(id string) (io.ReadCloser, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := cli.ContainerStats(GetContext(), id, true)
+	return resp.Body, err
+}
+
 func RemoveImage(id string) error {
 	cli, err := NewClient()
 	if err != nil {

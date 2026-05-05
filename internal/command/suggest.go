@@ -20,6 +20,7 @@ var Commands = []string{
 	"run",
 	"inspect",
 	"push",
+	"exec",
 }
 
 func Suggest(input string) []string {

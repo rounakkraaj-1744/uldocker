@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"dawker/pkg/types"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -39,6 +38,8 @@ type Model struct {
 	Suggestions     []string
 	History         []string
 	HistoryIndex    int
+	CurrentStats    types.ContainerStats
+	IsStats         bool
 }
 
 func NewModel() Model {

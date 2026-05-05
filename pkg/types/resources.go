@@ -15,3 +15,12 @@ type Network struct {
 	Name   string
 	Driver string
 }
+
+type ContainerStats struct {
+	CPUPercentage    float64
+	MemoryUsage     float64
+	MemoryLimit     float64
+	MemoryPercentage float64
+	NetIO           string
+	BlockIO         string
+}

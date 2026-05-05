@@ -6,6 +6,7 @@ import (
 	"dawker/internal/docker"
 	"dawker/pkg/types"
 	"io"
+	"os/exec"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,6 +31,11 @@ type logChunkMsg struct {
 }
 
 type streamEndedMsg struct{}
+
+type statsUpdateMsg struct {
+	stats  types.ContainerStats
+	reader io.Reader
+}
 
 func loadResources() tea.Msg {
 	containers, err := docker.ListContainers()
@@ -100,6 +106,29 @@ func readStreamCmd(reader io.Reader) tea.Cmd {
 	}
 }
 
+func startStatsCmd(ctx context.Context, containerID string) tea.Cmd {
+	return func() tea.Msg {
+		reader, err := docker.GetContainerStats(containerID)
+		if err != nil {
+			return logChunkMsg{chunk: "STATS ERROR: " + err.Error()}
+		}
+		return statsUpdateMsg{reader: reader}
+	}
+}
+
+func readStatsCmd(reader io.Reader) tea.Cmd {
+	return func() tea.Msg {
+		stats, err := docker.ParseStats(reader)
+		if err != nil {
+			return streamEndedMsg{}
+		}
+		return statsUpdateMsg{
+			stats:  stats,
+			reader: reader,
+		}
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -130,6 +159,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case logChunkMsg:
 		return m.handleLogChunk(msg)
+	
+	case statsUpdateMsg:
+		m.CurrentStats = msg.stats
+		m.IsStats = true
+		return m, readStatsCmd(msg.reader)
 
 	case streamEndedMsg:
 		m.Streaming = false
@@ -377,6 +411,7 @@ func (m *Model) cancelStream() {
 		m.LogsCancel = nil
 	}
 	m.Streaming = false
+	m.IsStats = false
 }
 
 func startPullCmd(ctx context.Context, imageName string) tea.Cmd {
@@ -478,10 +513,32 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 		return m, startPushCmd(ctx, imageName)
 	}
 
+	if strings.HasPrefix(resultMsg, "EXEC:") {
+		parts := strings.Split(strings.TrimPrefix(resultMsg, "EXEC:"), ":")
+		if len(parts) < 2 {
+			m.CommandError = "Invalid exec command"
+			return m, nil
+		}
+		containerID := parts[0]
+		shell := parts[1]
+
+		c := exec.Command("docker", "exec", "-it", containerID, shell)
+		return m, tea.ExecProcess(c, func(err error) tea.Msg {
+			if err != nil {
+				return logChunkMsg{chunk: "EXEC ERROR: " + err.Error()}
+			}
+			return loadResources
+		})
+	}
+
 	if strings.HasPrefix(resultMsg, "STATS:") {
-		// For now, just show a message. Proper stats implementation needs a loop.
-		m.CommandResult = "Stats view coming soon"
-		return m, nil
+		containerID := strings.TrimPrefix(resultMsg, "STATS:")
+		m.cancelStream()
+		m.IsStats = true
+		m.Streaming = true
+		ctx, cancel := context.WithCancel(context.Background())
+		m.LogsCancel = cancel
+		return m, startStatsCmd(ctx, containerID)
 	}
 
 	if cmd.Name == "inspect" {
