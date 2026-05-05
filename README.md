@@ -52,7 +52,7 @@ Get up and running in under a minute.
 The fastest way to install Dawker on Mac or Linux:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/rounakk/dawker/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/rounakkraaj-1744/dawker/main/install.sh | bash
 ```
 
 ### Install (From Source)

@@ -29,3 +29,7 @@ dawker
 # OS specific
 .DS_Store
 Thumbs.db
+dawker_Windows_amd64.zip
+.gitignore
+dawker_Linux_amd64.tar.gz
+dawker_Darwin_arm64.tar.gz
