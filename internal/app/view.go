@@ -103,7 +103,7 @@ func (m Model) renderImages() string {
 
 	var sb strings.Builder
 	for i, img := range m.Images {
-		line := fmt.Sprintf("%s:%s  [%s]", img.Repository, img.Tag, img.Size)
+		line := fmt.Sprintf("%s  %s:%s  [%s]", img.ID, img.Repository, img.Tag, img.Size)
 
 		if i == m.SelectedIndexes[TabImages] {
 			sb.WriteString(ui.SelectedItemStyle.Render("▸ "+line) + "\n")
@@ -214,8 +214,9 @@ func (m Model) renderRightPanel() string {
 			if idx < len(m.Images) {
 				img := m.Images[idx]
 				content = fmt.Sprintf(
-					"%s\n%s\n%s",
+					"%s\n%s\n%s\n%s",
 					ui.TitleStyle.Render("Image: "+img.Repository),
+					fmt.Sprintf("  ID:   %s", img.ID),
 					fmt.Sprintf("  Tag:  %s", img.Tag),
 					fmt.Sprintf("  Size: %s", img.Size),
 				)

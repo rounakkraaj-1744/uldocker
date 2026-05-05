@@ -163,7 +163,7 @@ func rmHandler(args []string, ctx Context) (string, error) {
 
 func rmiHandler(args []string, ctx Context) (string, error) {
 	for _, t := range ctx.ImageTargets {
-		if err := docker.RemoveImage(t.Repository); err != nil {
+		if err := docker.RemoveImage(t.ID); err != nil {
 			return "", err
 		}
 	}

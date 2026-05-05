@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/container"
 )
 
 func GetContainerStats(id string) (io.ReadCloser, error) {
@@ -14,7 +15,23 @@ func GetContainerStats(id string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	resp, err := cli.ContainerStats(GetContext(), id, true)
-	return resp.Body, err
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+func GetContainerLogs(id string) (io.ReadCloser, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return nil, err
+	}
+	return cli.ContainerLogs(GetContext(), id, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Tail:       "500",
+	})
 }
 
 func RemoveImage(id string) error {

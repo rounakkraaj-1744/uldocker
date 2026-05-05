@@ -11,7 +11,7 @@ func MatchContainers(query string, containers []types.Container) []types.Contain
 	query = strings.ToLower(query)
 
 	for _, c := range containers {
-		if strings.Contains(strings.ToLower(c.Name), query) {
+		if strings.Contains(strings.ToLower(c.Name), query) || strings.Contains(strings.ToLower(c.ID), query) {
 			result = append(result, c)
 		}
 	}
@@ -49,7 +49,7 @@ func MatchImages(query string, images []types.Image) []types.Image {
 	var result []types.Image
 	query = strings.ToLower(query)
 	for _, i := range images {
-		if strings.Contains(strings.ToLower(i.Repository), query) {
+		if strings.Contains(strings.ToLower(i.Repository), query) || strings.Contains(strings.ToLower(i.ID), query) {
 			result = append(result, i)
 		}
 	}

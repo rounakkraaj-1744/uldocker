@@ -129,6 +129,16 @@ func readStatsCmd(reader io.Reader) tea.Cmd {
 	}
 }
 
+func startLogsCmd(ctx context.Context, id string) tea.Cmd {
+	return func() tea.Msg {
+		reader, err := docker.GetContainerLogs(id)
+		if err != nil {
+			return logChunkMsg{chunk: "LOGS ERROR: " + err.Error()}
+		}
+		return logStreamStartedMsg{reader: reader}
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -534,6 +544,7 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	if strings.HasPrefix(resultMsg, "STATS:") {
 		containerID := strings.TrimPrefix(resultMsg, "STATS:")
 		m.cancelStream()
+		m.CurrentID = containerID
 		m.IsStats = true
 		m.Streaming = true
 		ctx, cancel := context.WithCancel(context.Background())

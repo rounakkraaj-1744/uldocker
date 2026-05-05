@@ -40,7 +40,19 @@ func ListImages() ([]types.Image, error) {
 		sizeMB := float64(img.Size) / 1024.0 / 1024.0
 		sizeStr := fmt.Sprintf("%.1fMB", sizeMB)
 
+		id := img.ID
+		if strings.HasPrefix(id, "sha256:") {
+			if len(id) >= 19 {
+				id = id[7:19]
+			} else {
+				id = id[7:]
+			}
+		} else if len(id) > 12 {
+			id = id[:12]
+		}
+
 		result = append(result, types.Image{
+			ID:         id,
 			Repository: repo,
 			Tag:        tag,
 			Size:       sizeStr,

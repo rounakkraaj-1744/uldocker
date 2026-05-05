@@ -23,12 +23,21 @@ func ParseStats(reader io.Reader) (types.ContainerStats, error) {
 		memPercent = (memUsage / memLimit) * 100.0
 	}
 
+	netRx := 0.0
+	netTx := 0.0
+	if s.Networks != nil {
+		if n, ok := s.Networks["eth0"]; ok {
+			netRx = float64(n.RxBytes) / 1024 / 1024
+			netTx = float64(n.TxBytes) / 1024 / 1024
+		}
+	}
+
 	return types.ContainerStats{
 		CPUPercentage:    cpuPercent,
 		MemoryUsage:     memUsage,
 		MemoryLimit:     memLimit,
 		MemoryPercentage: memPercent,
-		NetIO:           fmt.Sprintf("%.1fMB / %.1fMB", float64(s.Networks["eth0"].RxBytes)/1024/1024, float64(s.Networks["eth0"].TxBytes)/1024/1024),
+		NetIO:           fmt.Sprintf("%.1fMB / %.1fMB", netRx, netTx),
 		BlockIO:         fmt.Sprintf("%.1fMB / %.1fMB", float64(s.StorageStats.ReadCountNormalized)/1024/1024, float64(s.StorageStats.WriteCountNormalized)/1024/1024),
 	}, nil
 }
