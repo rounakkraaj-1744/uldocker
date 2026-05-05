@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"fmt"
+	"io"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 )
 
 func RemoveImage(id string) error {
@@ -64,4 +67,41 @@ func PruneNetworks() (int, error) {
 	}
 	report, err := cli.NetworksPrune(GetContext(), filters.Args{})
 	return len(report.NetworksDeleted), err
+}
+
+func PullImage(name string) (io.ReadCloser, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return nil, err
+	}
+	return cli.ImagePull(GetContext(), name, image.PullOptions{})
+}
+
+func PushImage(name string) (io.ReadCloser, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return nil, err
+	}
+	return cli.ImagePush(GetContext(), name, image.PushOptions{})
+}
+
+func InspectResource(id string, resourceType string) (interface{}, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return nil, err
+	}
+	ctx := GetContext()
+
+	switch resourceType {
+	case "container":
+		return cli.ContainerInspect(ctx, id)
+	case "image":
+		raw, _, err := cli.ImageInspectWithRaw(ctx, id)
+		return raw, err
+	case "volume":
+		return cli.VolumeInspect(ctx, id)
+	case "network":
+		return cli.NetworkInspect(ctx, id, network.InspectOptions{})
+	}
+	return nil, fmt.Errorf("invalid resource type: %s", resourceType)
 }

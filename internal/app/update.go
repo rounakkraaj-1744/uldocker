@@ -100,8 +100,6 @@ func readStreamCmd(reader io.Reader) tea.Cmd {
 	}
 }
 
-// --- Update ---
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -381,6 +379,26 @@ func (m *Model) cancelStream() {
 	m.Streaming = false
 }
 
+func startPullCmd(ctx context.Context, imageName string) tea.Cmd {
+	return func() tea.Msg {
+		reader, err := docker.PullImage(imageName)
+		if err != nil {
+			return logChunkMsg{chunk: "ERROR: " + err.Error()}
+		}
+		return logStreamStartedMsg{reader: reader}
+	}
+}
+
+func startPushCmd(ctx context.Context, imageName string) tea.Cmd {
+	return func() tea.Msg {
+		reader, err := docker.PushImage(imageName)
+		if err != nil {
+			return logChunkMsg{chunk: "ERROR: " + err.Error()}
+		}
+		return logStreamStartedMsg{reader: reader}
+	}
+}
+
 func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	cmd := command.Parse(m.CommandInput)
 	if cmd.Name == "" {
@@ -415,13 +433,14 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 		}
 	} else {
 		switch cmd.Name {
-		case "rmi":
+		case "rmi", "pull":
 			images = command.MatchImages(cmd.Args[0], m.Images)
 		case "rmv":
 			volumes = command.MatchVolumes(cmd.Args[0], m.Volumes)
 		case "rmn":
 			networks = command.MatchNetworks(cmd.Args[0], m.Networks)
-		case "prune":
+		case "prune", "inspect":
+			// handled inside execute
 		default:
 			targets = command.ResolveTargets(cmd.Args, m.Containers)
 		}
@@ -435,6 +454,41 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	if err != nil {
 		m.CommandError = err.Error()
 		m.CommandResult = ""
+		return m, nil
+	}
+
+	// Handle special prefixes
+	if strings.HasPrefix(resultMsg, "PULL:") {
+		imageName := strings.TrimPrefix(resultMsg, "PULL:")
+		m.cancelStream()
+		m.Logs = []string{"Pulling " + imageName + "..."}
+		m.Streaming = true
+		ctx, cancel := context.WithCancel(context.Background())
+		m.LogsCancel = cancel
+		return m, startPullCmd(ctx, imageName)
+	}
+
+	if strings.HasPrefix(resultMsg, "PUSH:") {
+		imageName := strings.TrimPrefix(resultMsg, "PUSH:")
+		m.cancelStream()
+		m.Logs = []string{"Pushing " + imageName + "..."}
+		m.Streaming = true
+		ctx, cancel := context.WithCancel(context.Background())
+		m.LogsCancel = cancel
+		return m, startPushCmd(ctx, imageName)
+	}
+
+	if strings.HasPrefix(resultMsg, "STATS:") {
+		// For now, just show a message. Proper stats implementation needs a loop.
+		m.CommandResult = "Stats view coming soon"
+		return m, nil
+	}
+
+	if cmd.Name == "inspect" {
+		m.cancelStream()
+		m.Logs = strings.Split(resultMsg, "\n")
+		m.Streaming = true
+		m.ShowDetails = true
 		return m, nil
 	}
 

@@ -3,6 +3,7 @@ package command
 import (
 	"dawker/internal/docker"
 	"dawker/pkg/types"
+	"encoding/json"
 	"fmt"
 )
 
@@ -18,6 +19,11 @@ func init() {
 	globalRegistry.Register("rmv", rmvHandler)
 	globalRegistry.Register("rmn", rmnHandler)
 	globalRegistry.Register("prune", pruneHandler)
+	globalRegistry.Register("pull", pullHandler)
+	globalRegistry.Register("inspect", inspectHandler)
+	globalRegistry.Register("stats", statsHandler)
+	globalRegistry.Register("run", runHandler)
+	globalRegistry.Register("push", pushHandler)
 }
 
 func Execute(cmd Command, targets []types.Container, images []types.Image, volumes []types.Volume, networks []types.Network) (string, error) {
@@ -34,7 +40,79 @@ func Execute(cmd Command, targets []types.Container, images []types.Image, volum
 	})
 }
 
-// Handlers
+func pullHandler(args []string, ctx Context) (string, error) {
+	if len(args) == 0 {
+		return "", fmt.Errorf("image name required")
+	}
+	return "PULL:" + args[0], nil
+}
+
+func inspectHandler(args []string, ctx Context) (string, error) {
+	var targetID string
+	var resourceType string
+
+	if len(ctx.Targets) > 0 {
+		targetID = ctx.Targets[0].ID
+		resourceType = "container"
+	} else if len(ctx.ImageTargets) > 0 {
+		targetID = ctx.ImageTargets[0].Repository
+		resourceType = "image"
+	} else if len(ctx.VolumeTargets) > 0 {
+		targetID = ctx.VolumeTargets[0].Name
+		resourceType = "volume"
+	} else if len(ctx.NetworkTargets) > 0 {
+		targetID = ctx.NetworkTargets[0].Name
+		resourceType = "network"
+	}
+
+	if targetID == "" {
+		return "", fmt.Errorf("no target selected for inspect")
+	}
+
+	data, err := docker.InspectResource(targetID, resourceType)
+	if err != nil {
+		return "", err
+	}
+
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
+func statsHandler(args []string, ctx Context) (string, error) {
+	if len(ctx.Targets) == 0 {
+		return "", fmt.Errorf("no container selected for stats")
+	}
+	return "STATS:" + ctx.Targets[0].ID, nil
+}
+
+func runHandler(args []string, ctx Context) (string, error) {
+	if len(args) == 0 {
+		return "", fmt.Errorf("image name required")
+	}
+	id, err := docker.CreateAndStartContainer(args[0])
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Started container %s", id), nil
+}
+
+func pushHandler(args []string, ctx Context) (string, error) {
+	if len(args) == 0 && len(ctx.ImageTargets) == 0 {
+		return "", fmt.Errorf("image name required")
+	}
+	var name string
+	if len(args) > 0 {
+		name = args[0]
+	} else {
+		name = ctx.ImageTargets[0].Repository
+	}
+	return "PUSH:" + name, nil
+}
+
 func stopHandler(args []string, ctx Context) (string, error) {
 	for _, t := range ctx.Targets {
 		if err := docker.StopContainer(t.ID); err != nil {

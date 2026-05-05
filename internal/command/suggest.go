@@ -16,6 +16,10 @@ var Commands = []string{
 	"logs",
 	"stats",
 	"prune",
+	"pull",
+	"run",
+	"inspect",
+	"push",
 }
 
 func Suggest(input string) []string {

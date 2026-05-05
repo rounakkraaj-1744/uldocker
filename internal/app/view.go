@@ -5,7 +5,6 @@ import (
 	"dawker/internal/ui"
 	"fmt"
 	"strings"
-
 	"github.com/charmbracelet/lipgloss"
 )
 

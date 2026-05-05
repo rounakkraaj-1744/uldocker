@@ -3,7 +3,6 @@ package docker
 import (
 	"dawker/pkg/types"
 	"strings"
-
 	"github.com/docker/docker/api/types/container"
 )
 
@@ -68,4 +67,25 @@ func RemoveContainer(id string) error {
 		return err
 	}
 	return cli.ContainerRemove(GetContext(), id, container.RemoveOptions{Force: true})
+}
+
+func CreateAndStartContainer(imageName string) (string, error) {
+	cli, err := NewClient()
+	if err != nil {
+		return "", err
+	}
+	ctx := GetContext()
+
+	resp, err := cli.ContainerCreate(ctx, &container.Config{
+		Image: imageName,
+	}, nil, nil, nil, "")
+	if err != nil {
+		return "", err
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return "", err
+	}
+
+	return resp.ID[:12], nil
 }
